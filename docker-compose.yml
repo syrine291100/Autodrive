@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:17
+    container_name: autodrive-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: autodrive
+      POSTGRES_PASSWORD: autodrive_dev
+      POSTGRES_DB: autodrive
+    ports:
+      - "5433:5432"
+    volumes:
+      - autodrive_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  autodrive_postgres_data:
