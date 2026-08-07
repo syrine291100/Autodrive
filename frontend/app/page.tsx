@@ -1,3 +1,5 @@
+import VehicleForm from "./components/VehicleForm";
+
 type Vehicle = {
   id: number;
   brand: string;
@@ -53,9 +55,7 @@ export default async function Home() {
               </p>
             </div>
 
-            <button className="rounded-lg bg-white px-4 py-2 font-medium text-black transition hover:bg-zinc-200">
-              + Ajouter un véhicule
-            </button>
+            <VehicleForm />
           </div>
 
           <div className="grid gap-5 md:grid-cols-2">
