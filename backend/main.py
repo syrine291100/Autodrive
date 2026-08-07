@@ -79,3 +79,81 @@ def get_vehicles(
     ).all()
 
     return vehicles
+
+
+@app.get(
+    "/vehicles/{vehicle_id}",
+    response_model=schemas.VehicleResponse,
+)
+def get_vehicle(
+    vehicle_id: int,
+    db: Session = Depends(get_db),
+):
+    vehicle = db.get(models.Vehicle, vehicle_id)
+
+    if not vehicle:
+        raise HTTPException(
+            status_code=404,
+            detail="Vehicle not found.",
+        )
+
+    return vehicle
+
+
+@app.put(
+    "/vehicles/{vehicle_id}",
+    response_model=schemas.VehicleResponse,
+)
+def update_vehicle(
+    vehicle_id: int,
+    vehicle_data: schemas.VehicleCreate,
+    db: Session = Depends(get_db),
+):
+    vehicle = db.get(models.Vehicle, vehicle_id)
+
+    if not vehicle:
+        raise HTTPException(
+            status_code=404,
+            detail="Vehicle not found.",
+        )
+
+    duplicate = db.scalar(
+        select(models.Vehicle).where(
+            models.Vehicle.registration == vehicle_data.registration,
+            models.Vehicle.id != vehicle_id,
+        )
+    )
+
+    if duplicate:
+        raise HTTPException(
+            status_code=409,
+            detail="A vehicle with this registration already exists.",
+        )
+
+    for field, value in vehicle_data.model_dump().items():
+        setattr(vehicle, field, value)
+
+    db.commit()
+    db.refresh(vehicle)
+
+    return vehicle
+
+
+@app.delete(
+    "/vehicles/{vehicle_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_vehicle(
+    vehicle_id: int,
+    db: Session = Depends(get_db),
+):
+    vehicle = db.get(models.Vehicle, vehicle_id)
+
+    if not vehicle:
+        raise HTTPException(
+            status_code=404,
+            detail="Vehicle not found.",
+        )
+
+    db.delete(vehicle)
+    db.commit()
