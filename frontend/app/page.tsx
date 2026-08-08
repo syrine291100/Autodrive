@@ -1,3 +1,4 @@
+import VehicleActions from "./components/VehicleActions";
 import VehicleForm from "./components/VehicleForm";
 
 type Vehicle = {
@@ -88,6 +89,9 @@ export default async function Home() {
                   <p className="mt-1 text-2xl font-semibold">
                     {vehicle.mileage.toLocaleString("fr-FR")} km
                   </p>
+                </div>
+                <div className="mt-6 border-t border-zinc-800 pt-4">
+                  <VehicleActions vehicle={vehicle} />
                 </div>
               </article>
             ))}
