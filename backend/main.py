@@ -165,3 +165,102 @@ def delete_vehicle(
 
     db.delete(vehicle)
     db.commit()
+
+@app.post(
+    "/vehicles/{vehicle_id}/maintenances",
+    response_model=schemas.MaintenanceResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_maintenance(
+    vehicle_id: int,
+    maintenance: schemas.MaintenanceCreate,
+    db: Session = Depends(get_db),
+):
+    vehicle = db.get(models.Vehicle, vehicle_id)
+
+    if not vehicle:
+        raise HTTPException(
+            status_code=404,
+            detail="Vehicle not found.",
+        )
+
+    new_maintenance = models.Maintenance(
+        vehicle_id=vehicle_id,
+        **maintenance.model_dump(),
+    )
+
+    db.add(new_maintenance)
+    db.commit()
+    db.refresh(new_maintenance)
+
+    return new_maintenance
+
+
+@app.get(
+    "/vehicles/{vehicle_id}/maintenances",
+    response_model=list[schemas.MaintenanceResponse],
+)
+def get_vehicle_maintenances(
+    vehicle_id: int,
+    db: Session = Depends(get_db),
+):
+    vehicle = db.get(models.Vehicle, vehicle_id)
+
+    if not vehicle:
+        raise HTTPException(
+            status_code=404,
+            detail="Vehicle not found.",
+        )
+
+    maintenances = db.scalars(
+        select(models.Maintenance)
+        .where(models.Maintenance.vehicle_id == vehicle_id)
+        .order_by(models.Maintenance.date.desc())
+    ).all()
+
+    return maintenances
+
+@app.put(
+    "/maintenances/{maintenance_id}",
+    response_model=schemas.MaintenanceResponse,
+)
+def update_maintenance(
+    maintenance_id: int,
+    maintenance_data: schemas.MaintenanceCreate,
+    db: Session = Depends(get_db),
+):
+    maintenance = db.get(models.Maintenance, maintenance_id)
+
+    if not maintenance:
+        raise HTTPException(
+            status_code=404,
+            detail="Maintenance not found.",
+        )
+
+    for field, value in maintenance_data.model_dump().items():
+        setattr(maintenance, field, value)
+
+    db.commit()
+    db.refresh(maintenance)
+
+    return maintenance
+
+
+@app.delete(
+    "/maintenances/{maintenance_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_maintenance(
+    maintenance_id: int,
+    db: Session = Depends(get_db),
+):
+    maintenance = db.get(models.Maintenance, maintenance_id)
+
+    if not maintenance:
+        raise HTTPException(
+            status_code=404,
+            detail="Maintenance not found.",
+        )
+
+    db.delete(maintenance)
+    db.commit()
