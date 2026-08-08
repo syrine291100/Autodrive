@@ -1,7 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
-import MaintenanceActions from "./MaintenanceActions";
+import { FormEvent, useState } from "react";
 
 type Maintenance = {
   id: number;
@@ -15,46 +14,61 @@ type Maintenance = {
 };
 
 type Props = {
-  vehicleId: number;
+  maintenance: Maintenance;
+  onChanged: () => Promise<void>;
 };
 
-export default function MaintenancePanel({ vehicleId }: Props) {
-  const [maintenances, setMaintenances] = useState<Maintenance[]>([]);
-  const [isOpen, setIsOpen] = useState(false);
+export default function MaintenanceActions({
+  maintenance,
+  onChanged,
+}: Props) {
+  const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState("");
-  const totalCost = maintenances.reduce(
-  (total, maintenance) => total + Number(maintenance.cost),0);
 
-  async function loadMaintenances() {
-    const response = await fetch(
-      `http://127.0.0.1:8000/vehicles/${vehicleId}/maintenances`
+  async function handleDelete() {
+    const confirmed = window.confirm(
+      `Supprimer l'entretien "${maintenance.type}" ?`
     );
 
-    if (!response.ok) {
-      throw new Error("Impossible de récupérer les entretiens.");
-    }
+    if (!confirmed) return;
 
-    const data = await response.json();
-    setMaintenances(data);
+    setIsDeleting(true);
+
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/maintenances/${maintenance.id}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Impossible de supprimer cet entretien.");
+      }
+
+      await onChanged();
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Une erreur est survenue."
+      );
+    } finally {
+      setIsDeleting(false);
+    }
   }
 
-  useEffect(() => {
-    loadMaintenances().catch(() => {
-      setError("Impossible de charger les entretiens.");
-    });
-  }, [vehicleId]);
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleUpdate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     setIsSubmitting(true);
     setError("");
 
-    const form = event.currentTarget;
-    const formData = new FormData(form);
+    const formData = new FormData(event.currentTarget);
 
-    const maintenance = {
+    const updatedMaintenance = {
       type: formData.get("type"),
       date: formData.get("date"),
       mileage: Number(formData.get("mileage")),
@@ -64,23 +78,22 @@ export default function MaintenancePanel({ vehicleId }: Props) {
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/vehicles/${vehicleId}/maintenances`,
+        `http://127.0.0.1:8000/maintenances/${maintenance.id}`,
         {
-          method: "POST",
+          method: "PUT",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(maintenance),
+          body: JSON.stringify(updatedMaintenance),
         }
       );
 
       if (!response.ok) {
-        throw new Error("Impossible d'ajouter l'entretien.");
+        throw new Error("Impossible de modifier cet entretien.");
       }
 
-      form.reset();
-      setIsOpen(false);
-      await loadMaintenances();
+      setIsEditing(false);
+      await onChanged();
     } catch (error) {
       setError(
         error instanceof Error
@@ -93,96 +106,42 @@ export default function MaintenancePanel({ vehicleId }: Props) {
   }
 
   return (
-    <div className="mt-6 border-t border-zinc-800 pt-5">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <h4 className="font-semibold text-white">Entretien</h4>
-
-          <p className="text-sm text-zinc-500">
-            {maintenances.length} opération
-            {maintenances.length > 1 ? "s" : ""}
-            {" • "}
-            {totalCost.toLocaleString("fr-FR", {
-                style: "currency",
-                currency: "EUR",
-            })}
-            </p>
-        </div>
+    <>
+      <div className="mt-4 flex gap-2">
+        <button
+          onClick={() => setIsEditing(true)}
+          className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 transition hover:bg-zinc-800"
+        >
+          Modifier
+        </button>
 
         <button
-          onClick={() => setIsOpen(true)}
-          className="rounded-lg border border-zinc-700 px-3 py-2 text-sm text-zinc-300 transition hover:bg-zinc-800"
+          onClick={handleDelete}
+          disabled={isDeleting}
+          className="rounded-lg border border-red-900 px-3 py-1.5 text-xs text-red-400 transition hover:bg-red-950 disabled:opacity-50"
         >
-          + Ajouter
+          {isDeleting ? "Suppression..." : "Supprimer"}
         </button>
       </div>
 
-      {maintenances.length === 0 ? (
-        <p className="text-sm text-zinc-500">
-          Aucun entretien enregistré.
-        </p>
-      ) : (
-        <div className="space-y-3">
-          {maintenances.map((maintenance) => (
-            <div
-              key={maintenance.id}
-              className="rounded-xl bg-zinc-950 p-4"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="font-medium text-white">
-                    {maintenance.type}
-                  </p>
-
-                  <p className="mt-1 text-sm text-zinc-400">
-                    {new Date(
-                      `${maintenance.date}T00:00:00`
-                    ).toLocaleDateString("fr-FR")}
-                    {" • "}
-                    {maintenance.mileage.toLocaleString("fr-FR")} km
-                  </p>
-                </div>
-
-                <p className="font-semibold">
-                  {Number(maintenance.cost).toLocaleString("fr-FR", {
-                    style: "currency",
-                    currency: "EUR",
-                  })}
-                </p>
-              </div>
-
-              {maintenance.notes && (
-                <p className="mt-3 text-sm text-zinc-500">
-                  {maintenance.notes}
-                </p>
-              )}
-              <MaintenanceActions
-                maintenance={maintenance}
-                onChanged={loadMaintenances}
-                />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {isOpen && (
+      {isEditing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
           <div className="w-full max-w-lg rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
             <div className="mb-6 flex items-start justify-between">
               <div>
                 <h2 className="text-xl font-semibold">
-                  Ajouter un entretien
+                  Modifier l&apos;entretien
                 </h2>
 
                 <p className="mt-1 text-sm text-zinc-400">
-                  Enregistrez une intervention sur ce véhicule.
+                  Modifiez les informations de cette intervention.
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={() => {
-                  setIsOpen(false);
+                  setIsEditing(false);
                   setError("");
                 }}
                 className="text-xl text-zinc-400 hover:text-white"
@@ -191,18 +150,15 @@ export default function MaintenancePanel({ vehicleId }: Props) {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleUpdate} className="space-y-4">
               <label className="block text-sm text-zinc-300">
-                Type d'entretien
+                Type d&apos;entretien
                 <select
                   required
                   name="type"
-                  defaultValue=""
+                  defaultValue={maintenance.type}
                   className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2.5"
                 >
-                  <option value="" disabled>
-                    Sélectionner
-                  </option>
                   <option value="Vidange">Vidange</option>
                   <option value="Révision">Révision</option>
                   <option value="Pneus">Pneus</option>
@@ -221,6 +177,7 @@ export default function MaintenancePanel({ vehicleId }: Props) {
                     required
                     type="date"
                     name="date"
+                    defaultValue={maintenance.date}
                     className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2.5"
                   />
                 </label>
@@ -232,7 +189,7 @@ export default function MaintenancePanel({ vehicleId }: Props) {
                     type="number"
                     min="0"
                     name="mileage"
-                    placeholder="43500"
+                    defaultValue={maintenance.mileage}
                     className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2.5"
                   />
                 </label>
@@ -245,7 +202,7 @@ export default function MaintenancePanel({ vehicleId }: Props) {
                     min="0"
                     step="0.01"
                     name="cost"
-                    placeholder="99.90"
+                    defaultValue={maintenance.cost}
                     className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2.5"
                   />
                 </label>
@@ -256,7 +213,7 @@ export default function MaintenancePanel({ vehicleId }: Props) {
                 <textarea
                   name="notes"
                   rows={3}
-                  placeholder="Filtre à huile, contrôle des niveaux..."
+                  defaultValue={maintenance.notes ?? ""}
                   className="mt-2 w-full resize-none rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2.5"
                 />
               </label>
@@ -268,7 +225,10 @@ export default function MaintenancePanel({ vehicleId }: Props) {
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setIsOpen(false)}
+                  onClick={() => {
+                    setIsEditing(false);
+                    setError("");
+                  }}
                   className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300"
                 >
                   Annuler
@@ -279,13 +239,15 @@ export default function MaintenancePanel({ vehicleId }: Props) {
                   disabled={isSubmitting}
                   className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-black disabled:opacity-50"
                 >
-                  {isSubmitting ? "Ajout..." : "Ajouter"}
+                  {isSubmitting
+                    ? "Enregistrement..."
+                    : "Enregistrer"}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
