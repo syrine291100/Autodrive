@@ -1,5 +1,6 @@
 import VehicleActions from "./components/VehicleActions";
 import VehicleForm from "./components/VehicleForm";
+import MaintenancePanel from "./components/MaintenancePanel";
 
 type Vehicle = {
   id: number;
@@ -93,6 +94,7 @@ export default async function Home() {
                 <div className="mt-6 border-t border-zinc-800 pt-4">
                   <VehicleActions vehicle={vehicle} />
                 </div>
+                <MaintenancePanel vehicleId={vehicle.id} />
               </article>
             ))}
           </div>
