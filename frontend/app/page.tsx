@@ -2,7 +2,7 @@ import ExpensePanel from "./components/ExpensePanel";
 import VehicleActions from "./components/VehicleActions";
 import VehicleForm from "./components/VehicleForm";
 import MaintenancePanel from "./components/MaintenancePanel";
-
+import ReminderPanel from "./components/ReminderPanel";
 
 
 type Vehicle = {
@@ -101,6 +101,11 @@ export default async function Home() {
 
                 
                 <ExpensePanel vehicleId={vehicle.id} />
+
+                <ReminderPanel
+                  vehicleId={vehicle.id}
+                  vehicleMileage={vehicle.mileage}
+                />
               </article>
             ))}
           </div>
