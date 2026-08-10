@@ -1,3 +1,4 @@
+from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy import select, text
@@ -5,6 +6,7 @@ from sqlalchemy.orm import Session
 
 import models
 import schemas
+import auth
 from database import Base, engine, get_db
 from datetime import date
 from decimal import Decimal
@@ -646,3 +648,110 @@ def get_dashboard(
         "expenses_by_category": category_stats,
         "monthly_spending": monthly_spending,
     }
+
+@app.post(
+    "/auth/register",
+    response_model=schemas.UserResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def register_user(
+    user_data: schemas.UserCreate,
+    db: Session = Depends(get_db),
+):
+    normalized_email = (
+        str(user_data.email)
+        .strip()
+        .lower()
+    )
+
+    existing_user = db.scalar(
+        select(models.User).where(
+            models.User.email == normalized_email
+        )
+    )
+
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account with this email already exists.",
+        )
+
+    new_user = models.User(
+        name=user_data.name.strip(),
+        email=normalized_email,
+        hashed_password=auth.get_password_hash(
+            user_data.password
+        ),
+    )
+
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    return new_user
+
+@app.post(
+    "/auth/login",
+    response_model=schemas.TokenResponse,
+)
+def login_user(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
+):
+    normalized_email = (
+        form_data.username
+        .strip()
+        .lower()
+    )
+
+    user = db.scalar(
+        select(models.User).where(
+            models.User.email == normalized_email
+        )
+    )
+
+    if not user:
+        auth.verify_password(
+            form_data.password,
+            auth.DUMMY_HASH,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password.",
+            headers={
+                "WWW-Authenticate": "Bearer"
+            },
+        )
+
+    if not auth.verify_password(
+        form_data.password,
+        user.hashed_password,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password.",
+            headers={
+                "WWW-Authenticate": "Bearer"
+            },
+        )
+
+    access_token = auth.create_access_token(
+        user.id
+    )
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+    }
+
+@app.get(
+    "/auth/me",
+    response_model=schemas.UserResponse,
+)
+def get_current_user_profile(
+    current_user: models.User = Depends(
+        auth.get_current_user
+    ),
+):
+    return current_user
