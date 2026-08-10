@@ -64,3 +64,30 @@ class ReminderResponse(ReminderCreate):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+class CategoryStat(BaseModel):
+    category: str
+    amount: Decimal
+
+
+class MonthlyStat(BaseModel):
+    month: str
+    expenses: Decimal
+    maintenance: Decimal
+    total: Decimal
+
+
+class DashboardResponse(BaseModel):
+    vehicles_count: int
+    expenses_count: int
+    maintenances_count: int
+
+    total_expenses: Decimal
+    total_maintenance: Decimal
+    total_spending: Decimal
+
+    active_reminders: int
+    overdue_reminders: int
+
+    expenses_by_category: list[CategoryStat]
+    monthly_spending: list[MonthlyStat]
