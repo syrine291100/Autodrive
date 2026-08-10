@@ -49,3 +49,18 @@ class ExpenseResponse(ExpenseCreate):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+class ReminderCreate(BaseModel):
+    title: str
+    due_date: date | None = None
+    due_mileage: int | None = None
+    notes: str | None = None
+    completed: bool = False
+
+
+class ReminderResponse(ReminderCreate):
+    id: int
+    vehicle_id: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
