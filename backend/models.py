@@ -52,3 +52,28 @@ class Maintenance(Base):
         DateTime(timezone=True),
         server_default=func.now(),
     )
+
+class Expense(Base):
+    __tablename__ = "expenses"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
+
+    vehicle_id: Mapped[int] = mapped_column(
+        ForeignKey("vehicles.id", ondelete="CASCADE"),
+        index=True,
+    )
+
+    category: Mapped[str] = mapped_column(String(100))
+    date: Mapped[date] = mapped_column(Date)
+    amount: Mapped[Decimal] = mapped_column(Numeric(10, 2))
+    mileage: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )

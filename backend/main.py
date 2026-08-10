@@ -264,3 +264,103 @@ def delete_maintenance(
 
     db.delete(maintenance)
     db.commit()
+
+@app.post(
+    "/vehicles/{vehicle_id}/expenses",
+    response_model=schemas.ExpenseResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_expense(
+    vehicle_id: int,
+    expense: schemas.ExpenseCreate,
+    db: Session = Depends(get_db),
+):
+    vehicle = db.get(models.Vehicle, vehicle_id)
+
+    if not vehicle:
+        raise HTTPException(
+            status_code=404,
+            detail="Vehicle not found.",
+        )
+
+    new_expense = models.Expense(
+        vehicle_id=vehicle_id,
+        **expense.model_dump(),
+    )
+
+    db.add(new_expense)
+    db.commit()
+    db.refresh(new_expense)
+
+    return new_expense
+
+
+@app.get(
+    "/vehicles/{vehicle_id}/expenses",
+    response_model=list[schemas.ExpenseResponse],
+)
+def get_vehicle_expenses(
+    vehicle_id: int,
+    db: Session = Depends(get_db),
+):
+    vehicle = db.get(models.Vehicle, vehicle_id)
+
+    if not vehicle:
+        raise HTTPException(
+            status_code=404,
+            detail="Vehicle not found.",
+        )
+
+    expenses = db.scalars(
+        select(models.Expense)
+        .where(models.Expense.vehicle_id == vehicle_id)
+        .order_by(models.Expense.date.desc())
+    ).all()
+
+    return expenses
+
+
+@app.put(
+    "/expenses/{expense_id}",
+    response_model=schemas.ExpenseResponse,
+)
+def update_expense(
+    expense_id: int,
+    expense_data: schemas.ExpenseCreate,
+    db: Session = Depends(get_db),
+):
+    expense = db.get(models.Expense, expense_id)
+
+    if not expense:
+        raise HTTPException(
+            status_code=404,
+            detail="Expense not found.",
+        )
+
+    for field, value in expense_data.model_dump().items():
+        setattr(expense, field, value)
+
+    db.commit()
+    db.refresh(expense)
+
+    return expense
+
+
+@app.delete(
+    "/expenses/{expense_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_expense(
+    expense_id: int,
+    db: Session = Depends(get_db),
+):
+    expense = db.get(models.Expense, expense_id)
+
+    if not expense:
+        raise HTTPException(
+            status_code=404,
+            detail="Expense not found.",
+        )
+
+    db.delete(expense)
+    db.commit()
