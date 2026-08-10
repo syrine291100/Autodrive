@@ -1,6 +1,9 @@
+import ExpensePanel from "./components/ExpensePanel";
 import VehicleActions from "./components/VehicleActions";
 import VehicleForm from "./components/VehicleForm";
 import MaintenancePanel from "./components/MaintenancePanel";
+
+
 
 type Vehicle = {
   id: number;
@@ -95,6 +98,9 @@ export default async function Home() {
                   <VehicleActions vehicle={vehicle} />
                 </div>
                 <MaintenancePanel vehicleId={vehicle.id} />
+
+                
+                <ExpensePanel vehicleId={vehicle.id} />
               </article>
             ))}
           </div>
