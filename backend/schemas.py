@@ -34,3 +34,18 @@ class MaintenanceResponse(MaintenanceCreate):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+class ExpenseCreate(BaseModel):
+    category: str
+    date: date
+    amount: Decimal
+    mileage: int | None = None
+    notes: str | None = None
+
+
+class ExpenseResponse(ExpenseCreate):
+    id: int
+    vehicle_id: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
