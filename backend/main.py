@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 import models
 import schemas
 from database import Base, engine, get_db
-
+from datetime import date
+from decimal import Decimal
 
 Base.metadata.create_all(bind=engine)
 
@@ -479,3 +480,169 @@ def delete_reminder(
 
     db.delete(reminder)
     db.commit()
+
+@app.get(
+    "/dashboard",
+    response_model=schemas.DashboardResponse,
+)
+def get_dashboard(
+    db: Session = Depends(get_db),
+):
+    vehicles = db.scalars(
+        select(models.Vehicle)
+    ).all()
+
+    expenses = db.scalars(
+        select(models.Expense)
+    ).all()
+
+    maintenances = db.scalars(
+        select(models.Maintenance)
+    ).all()
+
+    reminders = db.scalars(
+        select(models.Reminder)
+    ).all()
+
+    total_expenses = sum(
+        (expense.amount for expense in expenses),
+        start=Decimal("0.00"),
+    )
+
+    total_maintenance = sum(
+        (maintenance.cost for maintenance in maintenances),
+        start=Decimal("0.00"),
+    )
+
+    total_spending = (
+        total_expenses + total_maintenance
+    )
+
+    expenses_by_category: dict[str, Decimal] = {}
+
+    for expense in expenses:
+        expenses_by_category[expense.category] = (
+            expenses_by_category.get(
+                expense.category,
+                Decimal("0.00"),
+            )
+            + expense.amount
+        )
+
+    category_stats = [
+        {
+            "category": category,
+            "amount": amount,
+        }
+        for category, amount
+        in sorted(
+            expenses_by_category.items(),
+            key=lambda item: item[1],
+            reverse=True,
+        )
+    ]
+
+    monthly_data: dict[
+        str,
+        dict[str, Decimal],
+    ] = {}
+
+    for expense in expenses:
+        month = expense.date.strftime("%Y-%m")
+
+        if month not in monthly_data:
+            monthly_data[month] = {
+                "expenses": Decimal("0.00"),
+                "maintenance": Decimal("0.00"),
+            }
+
+        monthly_data[month]["expenses"] += (
+            expense.amount
+        )
+
+    for maintenance in maintenances:
+        month = maintenance.date.strftime("%Y-%m")
+
+        if month not in monthly_data:
+            monthly_data[month] = {
+                "expenses": Decimal("0.00"),
+                "maintenance": Decimal("0.00"),
+            }
+
+        monthly_data[month]["maintenance"] += (
+            maintenance.cost
+        )
+
+    monthly_spending = []
+
+    for month in sorted(monthly_data.keys()):
+        expenses_amount = (
+            monthly_data[month]["expenses"]
+        )
+
+        maintenance_amount = (
+            monthly_data[month]["maintenance"]
+        )
+
+        monthly_spending.append(
+            {
+                "month": month,
+                "expenses": expenses_amount,
+                "maintenance": maintenance_amount,
+                "total": (
+                    expenses_amount
+                    + maintenance_amount
+                ),
+            }
+        )
+
+    vehicle_mileages = {
+        vehicle.id: vehicle.mileage
+        for vehicle in vehicles
+    }
+
+    active_reminders = 0
+    overdue_reminders = 0
+
+    today = date.today()
+
+    for reminder in reminders:
+        if reminder.completed:
+            continue
+
+        active_reminders += 1
+
+        overdue_by_date = (
+            reminder.due_date is not None
+            and reminder.due_date < today
+        )
+
+        vehicle_mileage = vehicle_mileages.get(
+            reminder.vehicle_id
+        )
+
+        overdue_by_mileage = (
+            reminder.due_mileage is not None
+            and vehicle_mileage is not None
+            and vehicle_mileage
+            >= reminder.due_mileage
+        )
+
+        if overdue_by_date or overdue_by_mileage:
+            overdue_reminders += 1
+
+    return {
+        "vehicles_count": len(vehicles),
+        "expenses_count": len(expenses),
+        "maintenances_count": len(maintenances),
+
+        "total_expenses": total_expenses,
+        "total_maintenance": total_maintenance,
+        "total_spending": total_spending,
+
+        "active_reminders": active_reminders,
+        "overdue_reminders": overdue_reminders,
+
+        "expenses_by_category": category_stats,
+        "monthly_spending": monthly_spending,
+    }
