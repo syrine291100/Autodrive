@@ -364,3 +364,118 @@ def delete_expense(
 
     db.delete(expense)
     db.commit()
+
+@app.post(
+    "/vehicles/{vehicle_id}/reminders",
+    response_model=schemas.ReminderResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_reminder(
+    vehicle_id: int,
+    reminder: schemas.ReminderCreate,
+    db: Session = Depends(get_db),
+):
+    vehicle = db.get(models.Vehicle, vehicle_id)
+
+    if not vehicle:
+        raise HTTPException(
+            status_code=404,
+            detail="Vehicle not found.",
+        )
+
+    if reminder.due_date is None and reminder.due_mileage is None:
+        raise HTTPException(
+            status_code=400,
+            detail="A reminder must have a due date or a due mileage.",
+        )
+
+    new_reminder = models.Reminder(
+        vehicle_id=vehicle_id,
+        **reminder.model_dump(),
+    )
+
+    db.add(new_reminder)
+    db.commit()
+    db.refresh(new_reminder)
+
+    return new_reminder
+
+
+@app.get(
+    "/vehicles/{vehicle_id}/reminders",
+    response_model=list[schemas.ReminderResponse],
+)
+def get_vehicle_reminders(
+    vehicle_id: int,
+    db: Session = Depends(get_db),
+):
+    vehicle = db.get(models.Vehicle, vehicle_id)
+
+    if not vehicle:
+        raise HTTPException(
+            status_code=404,
+            detail="Vehicle not found.",
+        )
+
+    reminders = db.scalars(
+        select(models.Reminder)
+        .where(models.Reminder.vehicle_id == vehicle_id)
+        .order_by(models.Reminder.created_at.desc())
+    ).all()
+
+    return reminders
+
+
+@app.put(
+    "/reminders/{reminder_id}",
+    response_model=schemas.ReminderResponse,
+)
+def update_reminder(
+    reminder_id: int,
+    reminder_data: schemas.ReminderCreate,
+    db: Session = Depends(get_db),
+):
+    reminder = db.get(models.Reminder, reminder_id)
+
+    if not reminder:
+        raise HTTPException(
+            status_code=404,
+            detail="Reminder not found.",
+        )
+
+    if (
+        reminder_data.due_date is None
+        and reminder_data.due_mileage is None
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="A reminder must have a due date or a due mileage.",
+        )
+
+    for field, value in reminder_data.model_dump().items():
+        setattr(reminder, field, value)
+
+    db.commit()
+    db.refresh(reminder)
+
+    return reminder
+
+
+@app.delete(
+    "/reminders/{reminder_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_reminder(
+    reminder_id: int,
+    db: Session = Depends(get_db),
+):
+    reminder = db.get(models.Reminder, reminder_id)
+
+    if not reminder:
+        raise HTTPException(
+            status_code=404,
+            detail="Reminder not found.",
+        )
+
+    db.delete(reminder)
+    db.commit()
