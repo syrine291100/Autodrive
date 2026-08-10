@@ -3,7 +3,7 @@ import VehicleActions from "./components/VehicleActions";
 import VehicleForm from "./components/VehicleForm";
 import MaintenancePanel from "./components/MaintenancePanel";
 import ReminderPanel from "./components/ReminderPanel";
-
+import DashboardPanel from "./components/DashboardPanel";
 
 type Vehicle = {
   id: number;
@@ -47,6 +47,8 @@ export default async function Home() {
             Gérez vos véhicules, leur entretien et vos dépenses.
           </p>
         </header>
+
+        <DashboardPanel />
 
         <section>
           <div className="mb-6 flex items-center justify-between">
