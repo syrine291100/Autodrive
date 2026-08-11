@@ -21,6 +21,11 @@ class Vehicle(Base):
     __tablename__ = "vehicles"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(
+    ForeignKey("users.id", ondelete="CASCADE"),
+    index=True,
+    nullable=False,
+    )
     brand: Mapped[str] = mapped_column(String(100))
     model: Mapped[str] = mapped_column(String(100))
     year: Mapped[int] = mapped_column(Integer)

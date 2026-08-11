@@ -1,15 +1,17 @@
-from fastapi.security import OAuth2PasswordRequestForm
-from fastapi.middleware.cors import CORSMiddleware
+from datetime import date
+from decimal import Decimal
+
 from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
+import auth
 import models
 import schemas
-import auth
 from database import Base, engine, get_db
-from datetime import date
-from decimal import Decimal
+
 
 Base.metadata.create_all(bind=engine)
 
@@ -26,6 +28,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 @app.get("/")
 def root():
@@ -48,6 +51,27 @@ def database_health_check():
     }
 
 
+def get_owned_vehicle(
+    vehicle_id: int,
+    current_user: models.User,
+    db: Session,
+) -> models.Vehicle:
+    vehicle = db.scalar(
+        select(models.Vehicle).where(
+            models.Vehicle.id == vehicle_id,
+            models.Vehicle.user_id == current_user.id,
+        )
+    )
+
+    if not vehicle:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Vehicle not found.",
+        )
+
+    return vehicle
+
+
 @app.post(
     "/vehicles",
     response_model=schemas.VehicleResponse,
@@ -56,6 +80,7 @@ def database_health_check():
 def create_vehicle(
     vehicle: schemas.VehicleCreate,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
 ):
     existing_vehicle = db.scalar(
         select(models.Vehicle).where(
@@ -65,11 +90,14 @@ def create_vehicle(
 
     if existing_vehicle:
         raise HTTPException(
-            status_code=409,
+            status_code=status.HTTP_409_CONFLICT,
             detail="A vehicle with this registration already exists.",
         )
 
-    new_vehicle = models.Vehicle(**vehicle.model_dump())
+    new_vehicle = models.Vehicle(
+        user_id=current_user.id,
+        **vehicle.model_dump(),
+    )
 
     db.add(new_vehicle)
     db.commit()
@@ -84,9 +112,12 @@ def create_vehicle(
 )
 def get_vehicles(
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
 ):
     vehicles = db.scalars(
-        select(models.Vehicle).order_by(models.Vehicle.id)
+        select(models.Vehicle)
+        .where(models.Vehicle.user_id == current_user.id)
+        .order_by(models.Vehicle.id)
     ).all()
 
     return vehicles
@@ -99,16 +130,13 @@ def get_vehicles(
 def get_vehicle(
     vehicle_id: int,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
 ):
-    vehicle = db.get(models.Vehicle, vehicle_id)
-
-    if not vehicle:
-        raise HTTPException(
-            status_code=404,
-            detail="Vehicle not found.",
-        )
-
-    return vehicle
+    return get_owned_vehicle(
+        vehicle_id,
+        current_user,
+        db,
+    )
 
 
 @app.put(
@@ -119,14 +147,13 @@ def update_vehicle(
     vehicle_id: int,
     vehicle_data: schemas.VehicleCreate,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
 ):
-    vehicle = db.get(models.Vehicle, vehicle_id)
-
-    if not vehicle:
-        raise HTTPException(
-            status_code=404,
-            detail="Vehicle not found.",
-        )
+    vehicle = get_owned_vehicle(
+        vehicle_id,
+        current_user,
+        db,
+    )
 
     duplicate = db.scalar(
         select(models.Vehicle).where(
@@ -137,7 +164,7 @@ def update_vehicle(
 
     if duplicate:
         raise HTTPException(
-            status_code=409,
+            status_code=status.HTTP_409_CONFLICT,
             detail="A vehicle with this registration already exists.",
         )
 
@@ -157,17 +184,17 @@ def update_vehicle(
 def delete_vehicle(
     vehicle_id: int,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
 ):
-    vehicle = db.get(models.Vehicle, vehicle_id)
-
-    if not vehicle:
-        raise HTTPException(
-            status_code=404,
-            detail="Vehicle not found.",
-        )
+    vehicle = get_owned_vehicle(
+        vehicle_id,
+        current_user,
+        db,
+    )
 
     db.delete(vehicle)
     db.commit()
+
 
 @app.post(
     "/vehicles/{vehicle_id}/maintenances",
@@ -178,14 +205,13 @@ def create_maintenance(
     vehicle_id: int,
     maintenance: schemas.MaintenanceCreate,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
 ):
-    vehicle = db.get(models.Vehicle, vehicle_id)
-
-    if not vehicle:
-        raise HTTPException(
-            status_code=404,
-            detail="Vehicle not found.",
-        )
+    get_owned_vehicle(
+        vehicle_id,
+        current_user,
+        db,
+    )
 
     new_maintenance = models.Maintenance(
         vehicle_id=vehicle_id,
@@ -206,14 +232,13 @@ def create_maintenance(
 def get_vehicle_maintenances(
     vehicle_id: int,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
 ):
-    vehicle = db.get(models.Vehicle, vehicle_id)
-
-    if not vehicle:
-        raise HTTPException(
-            status_code=404,
-            detail="Vehicle not found.",
-        )
+    get_owned_vehicle(
+        vehicle_id,
+        current_user,
+        db,
+    )
 
     maintenances = db.scalars(
         select(models.Maintenance)
@@ -223,6 +248,7 @@ def get_vehicle_maintenances(
 
     return maintenances
 
+
 @app.put(
     "/maintenances/{maintenance_id}",
     response_model=schemas.MaintenanceResponse,
@@ -231,12 +257,23 @@ def update_maintenance(
     maintenance_id: int,
     maintenance_data: schemas.MaintenanceCreate,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
 ):
-    maintenance = db.get(models.Maintenance, maintenance_id)
+    maintenance = db.scalar(
+        select(models.Maintenance)
+        .join(
+            models.Vehicle,
+            models.Maintenance.vehicle_id == models.Vehicle.id,
+        )
+        .where(
+            models.Maintenance.id == maintenance_id,
+            models.Vehicle.user_id == current_user.id,
+        )
+    )
 
     if not maintenance:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Maintenance not found.",
         )
 
@@ -256,17 +293,29 @@ def update_maintenance(
 def delete_maintenance(
     maintenance_id: int,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
 ):
-    maintenance = db.get(models.Maintenance, maintenance_id)
+    maintenance = db.scalar(
+        select(models.Maintenance)
+        .join(
+            models.Vehicle,
+            models.Maintenance.vehicle_id == models.Vehicle.id,
+        )
+        .where(
+            models.Maintenance.id == maintenance_id,
+            models.Vehicle.user_id == current_user.id,
+        )
+    )
 
     if not maintenance:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Maintenance not found.",
         )
 
     db.delete(maintenance)
     db.commit()
+
 
 @app.post(
     "/vehicles/{vehicle_id}/expenses",
@@ -277,14 +326,13 @@ def create_expense(
     vehicle_id: int,
     expense: schemas.ExpenseCreate,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
 ):
-    vehicle = db.get(models.Vehicle, vehicle_id)
-
-    if not vehicle:
-        raise HTTPException(
-            status_code=404,
-            detail="Vehicle not found.",
-        )
+    get_owned_vehicle(
+        vehicle_id,
+        current_user,
+        db,
+    )
 
     new_expense = models.Expense(
         vehicle_id=vehicle_id,
@@ -305,14 +353,13 @@ def create_expense(
 def get_vehicle_expenses(
     vehicle_id: int,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
 ):
-    vehicle = db.get(models.Vehicle, vehicle_id)
-
-    if not vehicle:
-        raise HTTPException(
-            status_code=404,
-            detail="Vehicle not found.",
-        )
+    get_owned_vehicle(
+        vehicle_id,
+        current_user,
+        db,
+    )
 
     expenses = db.scalars(
         select(models.Expense)
@@ -331,12 +378,23 @@ def update_expense(
     expense_id: int,
     expense_data: schemas.ExpenseCreate,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
 ):
-    expense = db.get(models.Expense, expense_id)
+    expense = db.scalar(
+        select(models.Expense)
+        .join(
+            models.Vehicle,
+            models.Expense.vehicle_id == models.Vehicle.id,
+        )
+        .where(
+            models.Expense.id == expense_id,
+            models.Vehicle.user_id == current_user.id,
+        )
+    )
 
     if not expense:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Expense not found.",
         )
 
@@ -356,17 +414,29 @@ def update_expense(
 def delete_expense(
     expense_id: int,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
 ):
-    expense = db.get(models.Expense, expense_id)
+    expense = db.scalar(
+        select(models.Expense)
+        .join(
+            models.Vehicle,
+            models.Expense.vehicle_id == models.Vehicle.id,
+        )
+        .where(
+            models.Expense.id == expense_id,
+            models.Vehicle.user_id == current_user.id,
+        )
+    )
 
     if not expense:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Expense not found.",
         )
 
     db.delete(expense)
     db.commit()
+
 
 @app.post(
     "/vehicles/{vehicle_id}/reminders",
@@ -377,18 +447,17 @@ def create_reminder(
     vehicle_id: int,
     reminder: schemas.ReminderCreate,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
 ):
-    vehicle = db.get(models.Vehicle, vehicle_id)
-
-    if not vehicle:
-        raise HTTPException(
-            status_code=404,
-            detail="Vehicle not found.",
-        )
+    get_owned_vehicle(
+        vehicle_id,
+        current_user,
+        db,
+    )
 
     if reminder.due_date is None and reminder.due_mileage is None:
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="A reminder must have a due date or a due mileage.",
         )
 
@@ -411,14 +480,13 @@ def create_reminder(
 def get_vehicle_reminders(
     vehicle_id: int,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
 ):
-    vehicle = db.get(models.Vehicle, vehicle_id)
-
-    if not vehicle:
-        raise HTTPException(
-            status_code=404,
-            detail="Vehicle not found.",
-        )
+    get_owned_vehicle(
+        vehicle_id,
+        current_user,
+        db,
+    )
 
     reminders = db.scalars(
         select(models.Reminder)
@@ -437,12 +505,23 @@ def update_reminder(
     reminder_id: int,
     reminder_data: schemas.ReminderCreate,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
 ):
-    reminder = db.get(models.Reminder, reminder_id)
+    reminder = db.scalar(
+        select(models.Reminder)
+        .join(
+            models.Vehicle,
+            models.Reminder.vehicle_id == models.Vehicle.id,
+        )
+        .where(
+            models.Reminder.id == reminder_id,
+            models.Vehicle.user_id == current_user.id,
+        )
+    )
 
     if not reminder:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Reminder not found.",
         )
 
@@ -451,7 +530,7 @@ def update_reminder(
         and reminder_data.due_mileage is None
     ):
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="A reminder must have a due date or a due mileage.",
         )
 
@@ -471,17 +550,29 @@ def update_reminder(
 def delete_reminder(
     reminder_id: int,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
 ):
-    reminder = db.get(models.Reminder, reminder_id)
+    reminder = db.scalar(
+        select(models.Reminder)
+        .join(
+            models.Vehicle,
+            models.Reminder.vehicle_id == models.Vehicle.id,
+        )
+        .where(
+            models.Reminder.id == reminder_id,
+            models.Vehicle.user_id == current_user.id,
+        )
+    )
 
     if not reminder:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Reminder not found.",
         )
 
     db.delete(reminder)
     db.commit()
+
 
 @app.get(
     "/dashboard",
@@ -489,21 +580,39 @@ def delete_reminder(
 )
 def get_dashboard(
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
 ):
     vehicles = db.scalars(
-        select(models.Vehicle)
+        select(models.Vehicle).where(
+            models.Vehicle.user_id == current_user.id
+        )
     ).all()
 
     expenses = db.scalars(
         select(models.Expense)
+        .join(
+            models.Vehicle,
+            models.Expense.vehicle_id == models.Vehicle.id,
+        )
+        .where(models.Vehicle.user_id == current_user.id)
     ).all()
 
     maintenances = db.scalars(
         select(models.Maintenance)
+        .join(
+            models.Vehicle,
+            models.Maintenance.vehicle_id == models.Vehicle.id,
+        )
+        .where(models.Vehicle.user_id == current_user.id)
     ).all()
 
     reminders = db.scalars(
         select(models.Reminder)
+        .join(
+            models.Vehicle,
+            models.Reminder.vehicle_id == models.Vehicle.id,
+        )
+        .where(models.Vehicle.user_id == current_user.id)
     ).all()
 
     total_expenses = sum(
@@ -516,9 +625,7 @@ def get_dashboard(
         start=Decimal("0.00"),
     )
 
-    total_spending = (
-        total_expenses + total_maintenance
-    )
+    total_spending = total_expenses + total_maintenance
 
     expenses_by_category: dict[str, Decimal] = {}
 
@@ -536,8 +643,7 @@ def get_dashboard(
             "category": category,
             "amount": amount,
         }
-        for category, amount
-        in sorted(
+        for category, amount in sorted(
             expenses_by_category.items(),
             key=lambda item: item[1],
             reverse=True,
@@ -558,9 +664,7 @@ def get_dashboard(
                 "maintenance": Decimal("0.00"),
             }
 
-        monthly_data[month]["expenses"] += (
-            expense.amount
-        )
+        monthly_data[month]["expenses"] += expense.amount
 
     for maintenance in maintenances:
         month = maintenance.date.strftime("%Y-%m")
@@ -571,30 +675,20 @@ def get_dashboard(
                 "maintenance": Decimal("0.00"),
             }
 
-        monthly_data[month]["maintenance"] += (
-            maintenance.cost
-        )
+        monthly_data[month]["maintenance"] += maintenance.cost
 
     monthly_spending = []
 
     for month in sorted(monthly_data.keys()):
-        expenses_amount = (
-            monthly_data[month]["expenses"]
-        )
-
-        maintenance_amount = (
-            monthly_data[month]["maintenance"]
-        )
+        expenses_amount = monthly_data[month]["expenses"]
+        maintenance_amount = monthly_data[month]["maintenance"]
 
         monthly_spending.append(
             {
                 "month": month,
                 "expenses": expenses_amount,
                 "maintenance": maintenance_amount,
-                "total": (
-                    expenses_amount
-                    + maintenance_amount
-                ),
+                "total": expenses_amount + maintenance_amount,
             }
         )
 
@@ -626,8 +720,7 @@ def get_dashboard(
         overdue_by_mileage = (
             reminder.due_mileage is not None
             and vehicle_mileage is not None
-            and vehicle_mileage
-            >= reminder.due_mileage
+            and vehicle_mileage >= reminder.due_mileage
         )
 
         if overdue_by_date or overdue_by_mileage:
@@ -637,17 +730,15 @@ def get_dashboard(
         "vehicles_count": len(vehicles),
         "expenses_count": len(expenses),
         "maintenances_count": len(maintenances),
-
         "total_expenses": total_expenses,
         "total_maintenance": total_maintenance,
         "total_spending": total_spending,
-
         "active_reminders": active_reminders,
         "overdue_reminders": overdue_reminders,
-
         "expenses_by_category": category_stats,
         "monthly_spending": monthly_spending,
     }
+
 
 @app.post(
     "/auth/register",
@@ -658,11 +749,7 @@ def register_user(
     user_data: schemas.UserCreate,
     db: Session = Depends(get_db),
 ):
-    normalized_email = (
-        str(user_data.email)
-        .strip()
-        .lower()
-    )
+    normalized_email = str(user_data.email).strip().lower()
 
     existing_user = db.scalar(
         select(models.User).where(
@@ -690,6 +777,7 @@ def register_user(
 
     return new_user
 
+
 @app.post(
     "/auth/login",
     response_model=schemas.TokenResponse,
@@ -698,11 +786,7 @@ def login_user(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):
-    normalized_email = (
-        form_data.username
-        .strip()
-        .lower()
-    )
+    normalized_email = form_data.username.strip().lower()
 
     user = db.scalar(
         select(models.User).where(
@@ -719,9 +803,7 @@ def login_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password.",
-            headers={
-                "WWW-Authenticate": "Bearer"
-            },
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
     if not auth.verify_password(
@@ -731,19 +813,16 @@ def login_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password.",
-            headers={
-                "WWW-Authenticate": "Bearer"
-            },
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
-    access_token = auth.create_access_token(
-        user.id
-    )
+    access_token = auth.create_access_token(user.id)
 
     return {
         "access_token": access_token,
         "token_type": "bearer",
     }
+
 
 @app.get(
     "/auth/me",
