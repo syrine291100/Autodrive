@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "../lib/auth";
+
 import { FormEvent, useState } from "react";
 
 type Expense = {
@@ -37,8 +39,8 @@ export default function ExpenseActions({
     setIsDeleting(true);
 
     try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/expenses/${expense.id}`,
+      const response = await apiFetch(
+        `/expenses/${expense.id}`,
         {
           method: "DELETE",
         }
@@ -78,8 +80,8 @@ export default function ExpenseActions({
     };
 
     try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/expenses/${expense.id}`,
+      const response = await apiFetch(
+        `/expenses/${expense.id}`,
         {
           method: "PUT",
           headers: {

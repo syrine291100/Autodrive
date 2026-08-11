@@ -1,4 +1,6 @@
 "use client";
+
+import { apiFetch } from "../lib/auth";
 import ReminderActions from "./ReminderActions";
 import {
   FormEvent,
@@ -89,8 +91,8 @@ export default function ReminderPanel({
   const [error, setError] = useState("");
 
   const loadReminders = useCallback(async () => {
-    const response = await fetch(
-      `http://127.0.0.1:8000/vehicles/${vehicleId}/reminders`
+    const response = await apiFetch(
+      `/vehicles/${vehicleId}/reminders`
     );
 
     if (!response.ok) {
@@ -104,10 +106,40 @@ export default function ReminderPanel({
   }, [vehicleId]);
 
   useEffect(() => {
-    loadReminders().catch(() => {
-      setError("Impossible de charger les rappels.");
-    });
-  }, [loadReminders]);
+    let cancelled = false;
+
+    async function initialLoad() {
+      try {
+        const response = await apiFetch(
+          `/vehicles/${vehicleId}/reminders`
+        );
+
+        if (!response.ok) {
+          throw new Error(
+            "Impossible de récupérer les rappels."
+          );
+        }
+
+        const data = await response.json();
+
+        if (!cancelled) {
+          setReminders(data);
+        }
+      } catch {
+        if (!cancelled) {
+          setError(
+            "Impossible de charger les rappels."
+          );
+        }
+      }
+    }
+
+    void initialLoad();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [vehicleId]);
 
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>
@@ -142,8 +174,8 @@ export default function ReminderPanel({
     };
 
     try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/vehicles/${vehicleId}/reminders`,
+      const response = await apiFetch(
+        `/vehicles/${vehicleId}/reminders`,
         {
           method: "POST",
           headers: {

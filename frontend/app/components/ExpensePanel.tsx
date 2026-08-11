@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "../lib/auth";
+
 import { FormEvent, useEffect, useState } from "react";
 import ExpenseActions from "./ExpenseActions";
 
@@ -26,8 +28,8 @@ export default function ExpensePanel({ vehicleId }: Props) {
   const [error, setError] = useState("");
 
   async function loadExpenses() {
-    const response = await fetch(
-      `http://127.0.0.1:8000/vehicles/${vehicleId}/expenses`
+    const response = await apiFetch(
+      `/vehicles/${vehicleId}/expenses`
     );
 
     if (!response.ok) {
@@ -39,9 +41,39 @@ export default function ExpensePanel({ vehicleId }: Props) {
   }
 
   useEffect(() => {
-    loadExpenses().catch(() => {
-      setError("Impossible de charger les dépenses.");
-    });
+    let cancelled = false;
+
+    async function initialLoad() {
+      try {
+        const response = await apiFetch(
+          `/vehicles/${vehicleId}/expenses`
+        );
+
+        if (!response.ok) {
+          throw new Error(
+            "Impossible de récupérer les dépenses."
+          );
+        }
+
+        const data = await response.json();
+
+        if (!cancelled) {
+          setExpenses(data);
+        }
+      } catch {
+        if (!cancelled) {
+          setError(
+            "Impossible de charger les dépenses."
+          );
+        }
+      }
+    }
+
+    void initialLoad();
+
+    return () => {
+      cancelled = true;
+    };
   }, [vehicleId]);
 
   const totalAmount = expenses.reduce(
@@ -69,8 +101,8 @@ export default function ExpensePanel({ vehicleId }: Props) {
     };
 
     try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/vehicles/${vehicleId}/expenses`,
+      const response = await apiFetch(
+        `/vehicles/${vehicleId}/expenses`,
         {
           method: "POST",
           headers: {

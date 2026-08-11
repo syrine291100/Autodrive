@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "../lib/auth";
+
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -38,8 +40,8 @@ export default function VehicleActions({ vehicle }: Props) {
     setIsDeleting(true);
 
     try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/vehicles/${vehicle.id}`,
+      const response = await apiFetch(
+        `/vehicles/${vehicle.id}`,
         {
           method: "DELETE",
         }
@@ -50,6 +52,7 @@ export default function VehicleActions({ vehicle }: Props) {
       }
 
       router.refresh();
+      window.location.reload();
     } catch (error) {
       alert(
         error instanceof Error
@@ -79,8 +82,8 @@ export default function VehicleActions({ vehicle }: Props) {
     };
 
     try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/vehicles/${vehicle.id}`,
+      const response = await apiFetch(
+        `/vehicles/${vehicle.id}`,
         {
           method: "PUT",
           headers: {
@@ -100,6 +103,7 @@ export default function VehicleActions({ vehicle }: Props) {
 
       setIsEditing(false);
       router.refresh();
+      window.location.reload();
     } catch (error) {
       if (error instanceof Error) {
         setError(error.message);

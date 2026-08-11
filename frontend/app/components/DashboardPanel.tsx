@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "../lib/auth";
+
 import {
   useCallback,
   useEffect,
@@ -65,8 +67,8 @@ export default function DashboardPanel() {
     setError("");
 
     try {
-      const response = await fetch(
-        "http://127.0.0.1:8000/dashboard"
+      const response = await apiFetch(
+        "/dashboard"
       );
 
       if (!response.ok) {
@@ -90,8 +92,46 @@ export default function DashboardPanel() {
   }, []);
 
   useEffect(() => {
-    loadDashboard();
-  }, [loadDashboard]);
+    let cancelled = false;
+
+    async function initialLoad() {
+      try {
+        const response = await apiFetch(
+          "/dashboard"
+        );
+
+        if (!response.ok) {
+          throw new Error(
+            "Impossible de récupérer les statistiques."
+          );
+        }
+
+        const data = await response.json();
+
+        if (!cancelled) {
+          setDashboard(data);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setError(
+            error instanceof Error
+              ? error.message
+              : "Une erreur est survenue."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void initialLoad();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (isLoading) {
     return (
