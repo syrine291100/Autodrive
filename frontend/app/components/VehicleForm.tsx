@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "../lib/auth";
+
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -29,7 +31,7 @@ export default function VehicleForm() {
     };
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/vehicles", {
+      const response = await apiFetch("/vehicles", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -49,6 +51,7 @@ export default function VehicleForm() {
       setIsOpen(false);
 
       router.refresh();
+      window.location.reload();
     } catch (error) {
       if (error instanceof Error) {
         setError(error.message);

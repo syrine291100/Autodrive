@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "../lib/auth";
+
 import { FormEvent, useState } from "react";
 
 type Maintenance = {
@@ -37,8 +39,8 @@ export default function MaintenanceActions({
     setIsDeleting(true);
 
     try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/maintenances/${maintenance.id}`,
+      const response = await apiFetch(
+        `/maintenances/${maintenance.id}`,
         {
           method: "DELETE",
         }
@@ -77,8 +79,8 @@ export default function MaintenanceActions({
     };
 
     try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/maintenances/${maintenance.id}`,
+      const response = await apiFetch(
+        `/maintenances/${maintenance.id}`,
         {
           method: "PUT",
           headers: {

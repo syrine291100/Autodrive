@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "../lib/auth";
+
 import { FormEvent, useEffect, useState } from "react";
 import MaintenanceActions from "./MaintenanceActions";
 
@@ -27,8 +29,8 @@ export default function MaintenancePanel({ vehicleId }: Props) {
   (total, maintenance) => total + Number(maintenance.cost),0);
 
   async function loadMaintenances() {
-    const response = await fetch(
-      `http://127.0.0.1:8000/vehicles/${vehicleId}/maintenances`
+    const response = await apiFetch(
+      `/vehicles/${vehicleId}/maintenances`
     );
 
     if (!response.ok) {
@@ -40,9 +42,39 @@ export default function MaintenancePanel({ vehicleId }: Props) {
   }
 
   useEffect(() => {
-    loadMaintenances().catch(() => {
-      setError("Impossible de charger les entretiens.");
-    });
+    let cancelled = false;
+
+    async function initialLoad() {
+      try {
+        const response = await apiFetch(
+          `/vehicles/${vehicleId}/maintenances`
+        );
+
+        if (!response.ok) {
+          throw new Error(
+            "Impossible de récupérer les entretiens."
+          );
+        }
+
+        const data = await response.json();
+
+        if (!cancelled) {
+          setMaintenances(data);
+        }
+      } catch {
+        if (!cancelled) {
+          setError(
+            "Impossible de charger les entretiens."
+          );
+        }
+      }
+    }
+
+    void initialLoad();
+
+    return () => {
+      cancelled = true;
+    };
   }, [vehicleId]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -63,8 +95,8 @@ export default function MaintenancePanel({ vehicleId }: Props) {
     };
 
     try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/vehicles/${vehicleId}/maintenances`,
+      const response = await apiFetch(
+        `/vehicles/${vehicleId}/maintenances`,
         {
           method: "POST",
           headers: {
@@ -193,7 +225,7 @@ export default function MaintenancePanel({ vehicleId }: Props) {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <label className="block text-sm text-zinc-300">
-                Type d'entretien
+                Type d&apos;entretien
                 <select
                   required
                   name="type"

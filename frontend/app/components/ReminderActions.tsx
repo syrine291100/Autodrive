@@ -1,5 +1,7 @@
 "use client";
 
+import { apiFetch } from "../lib/auth";
+
 import { FormEvent, useState } from "react";
 
 type Reminder = {
@@ -38,8 +40,8 @@ export default function ReminderActions({
     setIsDeleting(true);
 
     try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/reminders/${reminder.id}`,
+      const response = await apiFetch(
+        `/reminders/${reminder.id}`,
         {
           method: "DELETE",
         }
@@ -73,8 +75,8 @@ export default function ReminderActions({
     };
 
     try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/reminders/${reminder.id}`,
+      const response = await apiFetch(
+        `/reminders/${reminder.id}`,
         {
           method: "PUT",
           headers: {
@@ -134,8 +136,8 @@ export default function ReminderActions({
     };
 
     try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/reminders/${reminder.id}`,
+      const response = await apiFetch(
+        `/reminders/${reminder.id}`,
         {
           method: "PUT",
           headers: {
