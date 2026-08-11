@@ -10,10 +10,7 @@ from sqlalchemy.orm import Session
 import auth
 import models
 import schemas
-from database import Base, engine, get_db
-
-
-Base.metadata.create_all(bind=engine)
+from database import engine, get_db
 
 
 app = FastAPI(
