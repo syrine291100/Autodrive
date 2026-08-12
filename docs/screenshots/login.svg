@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <rect width="1200" height="800" fill="#09090b"/>
+  <text x="600" y="105" text-anchor="middle" fill="#a1a1aa" font-family="Arial, sans-serif" font-size="24" letter-spacing="5">GESTION AUTOMOBILE</text>
+  <text x="600" y="175" text-anchor="middle" fill="#fafafa" font-family="Arial, sans-serif" font-size="62" font-weight="700">AutoDrive</text>
+  <text x="600" y="225" text-anchor="middle" fill="#a1a1aa" font-family="Arial, sans-serif" font-size="25">Connectez-vous à votre espace.</text>
+
+  <rect x="250" y="280" width="700" height="410" rx="26" fill="#18181b" stroke="#3f3f46" stroke-width="2"/>
+
+  <text x="305" y="350" fill="#f4f4f5" font-family="Arial, sans-serif" font-size="24">Adresse e-mail</text>
+  <rect x="305" y="375" width="590" height="70" rx="14" fill="#09090b" stroke="#52525b" stroke-width="2"/>
+
+  <text x="305" y="505" fill="#f4f4f5" font-family="Arial, sans-serif" font-size="24">Mot de passe</text>
+  <rect x="305" y="530" width="590" height="70" rx="14" fill="#09090b" stroke="#52525b" stroke-width="2"/>
+
+  <rect x="305" y="630" width="590" height="72" rx="14" fill="#fafafa"/>
+  <text x="600" y="675" text-anchor="middle" fill="#09090b" font-family="Arial, sans-serif" font-size="25">Se connecter</text>
+
+  <text x="600" y="747" text-anchor="middle" fill="#a1a1aa" font-family="Arial, sans-serif" font-size="21">Pas encore de compte ?  <tspan fill="#fafafa">Créer un compte</tspan></text>
+</svg>

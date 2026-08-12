@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <rect width="1200" height="800" fill="#ffffff"/>
+  <text x="55" y="115" fill="#3b4151" font-family="Arial, sans-serif" font-size="60" font-weight="700">AutoDrive API</text>
+  <rect x="445" y="70" width="86" height="50" rx="25" fill="#7d8493"/>
+  <text x="488" y="103" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="24" font-weight="700">0.1.0</text>
+  <rect x="542" y="70" width="125" height="50" rx="25" fill="#89bf34"/>
+  <text x="604" y="103" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="23" font-weight="700">OAS 3.1</text>
+  <text x="58" y="160" fill="#4990e2" font-family="Arial, sans-serif" font-size="21">/openapi.json</text>
+
+  <rect x="950" y="245" width="200" height="64" rx="8" fill="#ffffff" stroke="#49cc90" stroke-width="3"/>
+  <text x="1050" y="286" text-anchor="middle" fill="#49cc90" font-family="Arial, sans-serif" font-size="23" font-weight="700">Authorize</text>
+
+  <line x1="0" y1="355" x2="1200" y2="355" stroke="#dddddd" stroke-width="2"/>
+  <text x="55" y="430" fill="#3b4151" font-family="Arial, sans-serif" font-size="34" font-weight="700">default</text>
+
+  <g font-family="Arial, sans-serif">
+    <rect x="45" y="465" width="1110" height="68" rx="8" fill="#ebf3fb" stroke="#61affe" stroke-width="2"/>
+    <rect x="58" y="477" width="140" height="44" rx="7" fill="#61affe"/>
+    <text x="128" y="506" text-anchor="middle" fill="#fff" font-size="20" font-weight="700">GET</text>
+    <text x="230" y="507" fill="#3b4151" font-size="22" font-weight="700">/health</text>
+    <text x="355" y="507" fill="#3b4151" font-size="21">Health Check</text>
+
+    <rect x="45" y="548" width="1110" height="68" rx="8" fill="#ebf3fb" stroke="#61affe" stroke-width="2"/>
+    <rect x="58" y="560" width="140" height="44" rx="7" fill="#61affe"/>
+    <text x="128" y="589" text-anchor="middle" fill="#fff" font-size="20" font-weight="700">GET</text>
+    <text x="230" y="590" fill="#3b4151" font-size="22" font-weight="700">/vehicles</text>
+    <text x="375" y="590" fill="#3b4151" font-size="21">Get Vehicles</text>
+
+    <rect x="45" y="631" width="1110" height="68" rx="8" fill="#e8f6f0" stroke="#49cc90" stroke-width="2"/>
+    <rect x="58" y="643" width="140" height="44" rx="7" fill="#49cc90"/>
+    <text x="128" y="672" text-anchor="middle" fill="#fff" font-size="20" font-weight="700">POST</text>
+    <text x="230" y="673" fill="#3b4151" font-size="22" font-weight="700">/vehicles</text>
+    <text x="375" y="673" fill="#3b4151" font-size="21">Create Vehicle</text>
+
+    <rect x="45" y="714" width="1110" height="58" rx="8" fill="#ebf3fb" stroke="#61affe" stroke-width="2"/>
+    <rect x="58" y="724" width="140" height="38" rx="7" fill="#61affe"/>
+    <text x="128" y="750" text-anchor="middle" fill="#fff" font-size="19" font-weight="700">GET</text>
+    <text x="230" y="750" fill="#3b4151" font-size="22" font-weight="700">/dashboard</text>
+    <text x="395" y="750" fill="#3b4151" font-size="21">Dashboard analytics</text>
+  </g>
+</svg>
