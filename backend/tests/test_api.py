@@ -10,7 +10,7 @@ from main import app
 
 
 client = TestClient(app)
-TEST_EMAIL_SUFFIX = "@autodrive.test"
+TEST_EMAIL_SUFFIX = "@autodrive-ci.com"
 
 
 def cleanup_test_data() -> None:
